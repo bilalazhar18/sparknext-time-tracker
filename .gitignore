@@ -28,3 +28,5 @@ config.local.py
 
 # Ignore static files
 static/
+!static/images/logo.png
+!static/images/qr.png
