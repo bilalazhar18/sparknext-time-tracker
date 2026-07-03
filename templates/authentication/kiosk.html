@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" class="h-100">
+
+<head>
+	<title>Building Portal - SparkNext</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.png') }}">
+	<link href="{{ url_for('static', filename='vendor/bootstrap-select/dist/css/bootstrap-select.min.css') }}" rel="stylesheet">
+	<link class="main-css" href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+
+<body class="vh-100">
+	<div class="authincation h-100">
+		<div class="container h-100">
+			<div class="row justify-content-center h-100 align-items-center">
+				<div class="col-md-6">
+					<div class="authincation-content">
+						<div class="row no-gutters">
+							<div class="col-xl-12">
+								<div class="auth-form text-center">
+									<div class="mb-4">
+										<img src="{{ url_for('static', filename='images/logo.png') }}" alt="SparkNext Logo" class="img-fluid" style="max-width: 180px; object-fit: contain;">
+									</div>
+
+									<h3 class="mb-2" id="buildingName">Detecting Building...</h3>
+									<p class="mb-4 text-muted" id="instructionText">Fetching your location to display the correct QR code.</p>
+									
+									<div class="d-flex justify-content-center align-items-center mb-4" id="qrContainer" style="min-height: 300px; background-color: #f8f9fa; border-radius: 10px;">
+                                        <div id="loader" class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                                            <span class="sr-only">Loading...</span>
+                                        </div>
+										<img id="qrCodeImage" src="" alt="Scan this QR code to login/register" class="img-fluid d-none" style="max-width: 300px; border-radius: 10px; border: 2px solid #ddd;">
+									</div>
+
+                                    <div id="fallbackSelection" class="d-none mt-3 text-start">
+                                        <div class="alert alert-info border-0 rounded-3" role="alert">
+                                            <strong>Automatic detection skipped.</strong> Please select your building from the list below to generate its QR code.
+                                        </div>
+                                        <label class="form-label font-weight-bold">Select Building</label>
+                                        <select id="buildingSelect" class="form-control mb-3 form-control-lg">
+                                            <option value="" disabled selected>Choose a building...</option>
+                                            {% for building in buildings %}
+                                            <option value="{{ building.barcode_token }}">{{ building.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button class="btn btn-primary btn-block btn-lg" onclick="loadManualBuilding()">Generate QR Code</button>
+                                    </div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		document.addEventListener("DOMContentLoaded", function() {
+			if (!navigator.geolocation) {
+				showError('Location detection is not supported by this browser.');
+                showFallback();
+				return;
+			}
+
+			navigator.geolocation.getCurrentPosition(
+				function(pos) {
+					fetchNearestBuilding(pos.coords.latitude, pos.coords.longitude);
+				},
+				function(err) {
+                    var errorMsg = "Location access denied or unavailable.";
+                    if (err.code === 1) errorMsg = "Location access was denied by your browser settings.";
+                    else if (err.code === 2) errorMsg = "Location information is unavailable (your device may not have a GPS sensor).";
+                    else if (err.code === 3) errorMsg = "Location request timed out.";
+					
+                    showError(errorMsg);
+                    showFallback();
+				},
+				{ enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+			);
+		});
+
+        function fetchNearestBuilding(lat, lng) {
+            fetch('/api/kiosk-building', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    latitude: lat,
+                    longitude: lng
+                })
+            })
+            .then(response => response.json().then(data => {
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to detect building.');
+                }
+                return data;
+            }))
+            .then(data => {
+                displayBuilding(data.building.name, data.qr_url);
+            })
+            .catch(error => {
+                showError(error.message);
+                showFallback();
+            });
+        }
+
+        function displayBuilding(name, qrUrl) {
+            document.getElementById('loader').classList.add('d-none');
+            document.getElementById('fallbackSelection').classList.add('d-none');
+            document.getElementById('qrContainer').classList.remove('d-none');
+            
+            var img = document.getElementById('qrCodeImage');
+            img.src = qrUrl;
+            img.classList.remove('d-none');
+            
+            document.getElementById('buildingName').textContent = name;
+            document.getElementById('instructionText').textContent = 'Scan this QR code with your phone to login or register.';
+        }
+
+        function loadManualBuilding() {
+            var select = document.getElementById('buildingSelect');
+            var token = select.value;
+            var name = select.options[select.selectedIndex].text;
+            
+            if (!token) return;
+            
+            // Use url_root instead of host_url so it correctly includes subfolders like /timetracker/ if configured in cPanel
+            var baseUrl = "{{ request.url_root }}register/";
+            var qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + encodeURIComponent(baseUrl + token);
+            displayBuilding(name, qrUrl);
+        }
+
+        function showError(msg) {
+            document.getElementById('loader').classList.add('d-none');
+            document.getElementById('instructionText').textContent = 'Please select a building to proceed.';
+            document.getElementById('qrContainer').classList.add('d-none');
+        }
+
+        function showFallback() {
+            document.getElementById('fallbackSelection').classList.remove('d-none');
+        }
+	</script>
+</body>
+</html>

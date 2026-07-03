@@ -1,0 +1,23 @@
+<!--**********************************
+            Nav header start
+        ***********************************-->
+<div class="nav-header">
+    <a href="{{ url_for('main.home') }}" class="brand-logo d-flex align-items-center justify-content-center">
+        <!-- Full Logo for Desktop -->
+        <img src="{{ url_for('static', filename='images/logo.png') }}?v=125" alt="SparkNext Logo"
+            class="img-fluid d-none d-md-block" style="max-width: 180px; max-height: 70px; object-fit: contain;">
+        
+        <!-- Icon Logo for Mobile -->
+        <img src="{{ url_for('static', filename='images/favicon.png') }}?v=125" alt="SparkNext Icon"
+            class="img-fluid d-md-none" style="max-width: 45px; max-height: 45px; object-fit: contain;">
+    </a>
+
+    <div class="nav-control">
+        <div class="hamburger">
+            <span class="line"></span><span class="line"></span><span class="line"></span>
+        </div>
+    </div>
+</div>
+<!--**********************************
+            Nav header end
+        ***********************************-->

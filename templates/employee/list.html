@@ -1,0 +1,326 @@
+{% extends "layouts/master.html" %}
+
+{% block title %}Employees | SparkNext{% endblock %}
+
+{% block extra_css %}
+<link href="{{ url_for('static', filename='vendor/datatables/css/jquery.dataTables.min.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='vendor/datatables/css/responsive.bootstrap.min.css') }}" rel="stylesheet">
+<style>
+    .employee-datatable {
+        width: 100%;
+    }
+
+    /* Prevent DataTables FOUC (Flash of Unstyled Content) and vertical jerk */
+    .employee-datatable:not(.dataTable) {
+        opacity: 0;
+    }
+
+    .employee-datatable:not(.dataTable) tbody tr:nth-child(n+11) {
+        display: none;
+    }
+
+    .employee-datatable.dataTable {
+        opacity: 1;
+        transition: opacity 0.3s ease-in;
+    }
+
+    .employee-datatable th,
+    .employee-datatable td {
+        vertical-align: middle;
+    }
+
+    .employee-email {
+        max-width: 280px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .employee-actions {
+        min-width: 86px;
+    }
+
+    .employee-delete-form {
+        display: inline-flex;
+    }
+
+    .add-staff-button {
+        border-radius: 2rem;
+        padding: 0.75rem 1.4rem;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-titles">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.home') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active"><a href="javascript:void(0)">Employees</a></li>
+    </ol>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between">
+                <h4 class="card-title mb-0">Employees</h4>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="badge light badge-primary">{{ employees|length }} total</span>
+                    {% if current_user.role == "admin" %}
+                    <button type="button" class="btn btn-success add-staff-button" data-bs-toggle="modal"
+                        data-bs-target="#addStaffModal">
+                        <i class="fa fa-plus me-1"></i> Add
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <table id="employeeResponsiveTable" class="display responsive nowrap employee-datatable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for employee in employees %}
+                        <tr>
+                            <td><strong class="text-black">{{ loop.index }}</strong></td>
+                            <td>{{ employee.name }}</td>
+                            <td class="employee-email" title="{{ employee.email }}">{{ employee.email }}</td>
+                            <td class="text-capitalize">{{ employee.role }}</td>
+                            <td>
+                                {% if employee.status %}
+                                <span class="badge light badge-success">Active</span>
+                                {% else %}
+                                <span class="badge light badge-warning">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end employee-actions">
+                                {% if current_user.role == "admin" %}
+                                <div class="d-flex justify-content-end">
+                                    <button type="button"
+                                        class="btn btn-primary shadow btn-xs sharp me-1 employee-edit-button"
+                                        title="Edit" data-bs-toggle="modal" data-bs-target="#editStaffModal"
+                                        data-update-url="{{ url_for('main.employee_update', user_id=employee.id) }}"
+                                        data-name="{{ employee.name|e }}" data-email="{{ employee.email|e }}"
+                                        data-role="{{ employee.role }}"
+                                        data-status="{{ '1' if employee.status else '0' }}">
+                                        <i class="fa fa-pencil"></i>
+                                    </button>
+                                    <form method="post"
+                                        action="{{ url_for('main.employee_delete', user_id=employee.id) }}"
+                                        class="employee-delete-form"
+                                        onsubmit="return confirm('Delete this staff member?');">
+                                        <button type="submit" class="btn btn-danger shadow btn-xs sharp" title="Delete">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('main.employee_create') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addStaffModalLabel">Add Staff</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <div class="form-group">
+                                <label class="col-form-label">Name</label>
+                                <input type="text" name="name"
+                                    class="form-control {% if errors.name %}is-invalid{% endif %}"
+                                    value="{{ form_data.name }}" placeholder="Full name" required>
+                                {% if errors.name %}
+                                <div class="invalid-feedback d-block">{{ errors.name }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="form-group">
+                                <label class="col-form-label">Email</label>
+                                <input type="email" name="email"
+                                    class="form-control {% if errors.email %}is-invalid{% endif %}"
+                                    value="{{ form_data.email }}" placeholder="Email" required>
+                                {% if errors.email %}
+                                <div class="invalid-feedback d-block">{{ errors.email }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="form-group">
+                                <label class="col-form-label">Password</label>
+                                <input type="password" name="password"
+                                    class="form-control {% if errors.password %}is-invalid{% endif %}"
+                                    placeholder="Password" required>
+                                {% if errors.password %}
+                                <div class="invalid-feedback d-block">{{ errors.password }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-xl-3">
+                            <div class="form-group">
+                                <label class="col-form-label">Role</label>
+                                <select name="role" class="form-control">
+                                    <option value="employee" {% if form_data.role=="employee" %}selected{% endif %}>
+                                        Employee</option>
+                                    <option value="temporary" {% if form_data.role=="temporary" %}selected{% endif %}>
+                                        Temporary</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-xl-3">
+                            <div class="form-group">
+                                <label class="col-form-label">Status</label>
+                                <select name="status" class="form-control">
+                                    <option value="1" {% if form_data.status=="1" %}selected{% endif %}>Active</option>
+                                    <option value="0" {% if form_data.status=="0" %}selected{% endif %}>Pending</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger light" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save Staff</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editStaffModal" tabindex="-1" aria-labelledby="editStaffModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form method="post" action="#" id="editStaffForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editStaffModalLabel">Edit Staff</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <div class="form-group">
+                                <label class="col-form-label" for="editStaffName">Name</label>
+                                <input type="text" name="name" id="editStaffName" class="form-control"
+                                    placeholder="Full name" required>
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="form-group">
+                                <label class="col-form-label" for="editStaffEmail">Email</label>
+                                <input type="email" name="email" id="editStaffEmail" class="form-control"
+                                    placeholder="Email" required>
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="form-group">
+                                <label class="col-form-label" for="editStaffPassword">New Password</label>
+                                <input type="password" name="password" id="editStaffPassword" class="form-control"
+                                    placeholder="Leave blank to keep current password">
+                            </div>
+                        </div>
+                        <div class="col-xl-3">
+                            <div class="form-group">
+                                <label class="col-form-label" for="editStaffRole">Role</label>
+                                <select name="role" id="editStaffRole" class="form-control">
+                                    <option value="employee">Employee</option>
+                                    <option value="temporary">Temporary</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-xl-3">
+                            <div class="form-group">
+                                <label class="col-form-label" for="editStaffStatus">Status</label>
+                                <select name="status" id="editStaffStatus" class="form-control">
+                                    <option value="1">Active</option>
+                                    <option value="0">Pending</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger light" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Update Staff</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='vendor/datatables/js/jquery.dataTables.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/datatables/js/dataTables.responsive.min.js') }}"></script>
+<script>
+    jQuery(function ($) {
+        $("#employeeResponsiveTable").DataTable({
+            responsive: true,
+            pageLength: 10,
+            lengthMenu: [10, 25, 50, 100],
+            pagingType: "simple_numbers",
+            ordering: true,
+            language: {
+                paginate: {
+                    previous: "Previous",
+                    next: "Next"
+                }
+            },
+            columnDefs: [
+                { orderable: false, targets: -1 },
+                { responsivePriority: 1, targets: 1 },
+                { responsivePriority: 2, targets: -1 },
+                { responsivePriority: 3, targets: 4 }
+            ]
+        });
+
+        {% if open_staff_modal %}
+        var addStaffModal = new bootstrap.Modal(document.getElementById("addStaffModal"));
+        addStaffModal.show();
+        {% endif %}
+
+        $(".employee-edit-button").on("click", function () {
+            var button = $(this);
+
+            $("#editStaffForm").attr("action", button.data("update-url"));
+            $("#editStaffName").val(button.data("name"));
+            $("#editStaffEmail").val(button.data("email"));
+            $("#editStaffRole").val(button.data("role"));
+            $("#editStaffStatus").val(String(button.data("status")));
+            $("#editStaffPassword").val("");
+        });
+    });
+</script>
+{% endblock %}

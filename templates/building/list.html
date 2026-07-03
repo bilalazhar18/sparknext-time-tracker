@@ -1,0 +1,353 @@
+{% extends "layouts/master.html" %}
+
+{% block title %}Buildings | SparkNext{% endblock %}
+
+{% block extra_css %}
+<link href="{{ url_for('static', filename='vendor/datatables/css/jquery.dataTables.min.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='vendor/datatables/css/responsive.bootstrap.min.css') }}" rel="stylesheet">
+<style>
+    .building-datatable {
+        width: 100%;
+    }
+
+    .building-datatable:not(.dataTable) {
+        opacity: 0;
+    }
+
+    .building-datatable:not(.dataTable) tbody tr:nth-child(n+11) {
+        display: none;
+    }
+
+    .building-datatable.dataTable {
+        opacity: 1;
+        transition: opacity 0.3s ease-in;
+    }
+
+    .building-datatable th,
+    .building-datatable td {
+        vertical-align: middle;
+    }
+
+    .building-actions {
+        min-width: 86px;
+    }
+
+    .building-delete-form {
+        display: inline-flex;
+    }
+
+    .add-building-button {
+        border-radius: 2rem;
+        padding: 0.75rem 1.4rem;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-titles">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.home') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active"><a href="javascript:void(0)">Buildings</a></li>
+    </ol>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between">
+                <h4 class="card-title mb-0">Buildings</h4>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="badge light badge-primary">{{ buildings|length }} total</span>
+                    {% if current_user.role == "admin" %}
+                    <button type="button" class="btn btn-success add-building-button" data-bs-toggle="modal"
+                        data-bs-target="#addBuildingModal">
+                        <i class="fa fa-plus me-1"></i> Add Building
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <table id="buildingResponsiveTable" class="display responsive nowrap building-datatable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Code</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>QR Info</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for building in buildings %}
+                        <tr>
+                            <td><strong class="text-black">{{ loop.index }}</strong></td>
+                            <td>{{ building.name }}</td>
+                            <td>{{ building.code }}</td>
+                            <td>
+                                {% if building.latitude and building.longitude %}
+                                    {{ building.latitude }}, {{ building.longitude }}
+                                {% else %}
+                                    <span class="text-muted">Not Set</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if building.status %}
+                                <span class="badge light badge-success">Active</span>
+                                {% else %}
+                                <span class="badge light badge-warning">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={{ request.url_root }}register/{{ building.barcode_token }}" target="_blank" class="badge badge-info">View QR</a>
+                            </td>
+                            <td class="text-end building-actions">
+                                {% if current_user.role == "admin" %}
+                                <div class="d-flex justify-content-end">
+                                    <button type="button"
+                                        class="btn btn-primary shadow btn-xs sharp me-1 building-edit-button"
+                                        title="Edit" data-bs-toggle="modal" data-bs-target="#editBuildingModal"
+                                        data-update-url="{{ url_for('main.building_update', building_id=building.id) }}"
+                                        data-name="{{ building.name|e }}" data-code="{{ building.code|e }}"
+                                        data-address="{{ building.address|e }}"
+                                        data-latitude="{{ building.latitude or '' }}"
+                                        data-longitude="{{ building.longitude or '' }}"
+                                        data-status="{{ '1' if building.status else '0' }}">
+                                        <i class="fa fa-pencil"></i>
+                                    </button>
+                                    <form method="post"
+                                        action="{{ url_for('main.building_delete', building_id=building.id) }}"
+                                        class="building-delete-form"
+                                        onsubmit="return confirm('Deactivate this building?');">
+                                        <button type="submit" class="btn btn-danger shadow btn-xs sharp" title="Delete">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addBuildingModal" tabindex="-1" aria-labelledby="addBuildingModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('main.building_create') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addBuildingModalLabel">Add Building</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <div class="form-group">
+                                <label class="col-form-label">Name</label>
+                                <input type="text" name="name"
+                                    class="form-control {% if errors.name %}is-invalid{% endif %}"
+                                    value="{{ form_data.name }}" placeholder="e.g. Head Office" required>
+                                {% if errors.name %}
+                                <div class="invalid-feedback d-block">{{ errors.name }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="form-group">
+                                <label class="col-form-label">Code</label>
+                                <input type="text" name="code"
+                                    class="form-control {% if errors.code %}is-invalid{% endif %}"
+                                    value="{{ form_data.code }}" placeholder="e.g. HQ" required>
+                                {% if errors.code %}
+                                <div class="invalid-feedback d-block">{{ errors.code }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-xl-12">
+                            <div class="form-group">
+                                <label class="col-form-label">Address (Optional)</label>
+                                <input type="text" name="address"
+                                    class="form-control"
+                                    value="{{ form_data.address }}" placeholder="Building Address">
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="form-group">
+                                <label class="col-form-label">Latitude</label>
+                                <input type="text" name="latitude"
+                                    class="form-control {% if errors.latitude %}is-invalid{% endif %}"
+                                    value="{{ form_data.latitude }}" placeholder="e.g. 31.5204">
+                                {% if errors.latitude %}
+                                <div class="invalid-feedback d-block">{{ errors.latitude }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="form-group">
+                                <label class="col-form-label">Longitude</label>
+                                <input type="text" name="longitude"
+                                    class="form-control {% if errors.longitude %}is-invalid{% endif %}"
+                                    value="{{ form_data.longitude }}" placeholder="e.g. 74.3587">
+                                {% if errors.longitude %}
+                                <div class="invalid-feedback d-block">{{ errors.longitude }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="form-group mt-4">
+                                <div class="form-check custom-checkbox mb-3">
+                                    <input type="checkbox" class="form-check-input" id="addShiftsCheckbox" name="add_shifts" value="1" {% if form_data.add_shifts == '1' %}checked{% endif %}>
+                                    <label class="form-check-label" for="addShiftsCheckbox">Automatically Create Default Shifts</label>
+                                    <small class="form-text text-muted d-block">Generates a Standard Morning and Evening Shift for this location.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="form-group">
+                                <label class="col-form-label">Status</label>
+                                <select name="status" class="form-control">
+                                    <option value="1" {% if form_data.status=="1" %}selected{% endif %}>Active</option>
+                                    <option value="0" {% if form_data.status=="0" %}selected{% endif %}>Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger light" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save Building</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editBuildingModal" tabindex="-1" aria-labelledby="editBuildingModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form method="post" action="#" id="editBuildingForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editBuildingModalLabel">Edit Building</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <div class="form-group">
+                                <label class="col-form-label" for="editBuildingName">Name</label>
+                                <input type="text" name="name" id="editBuildingName" class="form-control"
+                                    placeholder="Building Name" required>
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="form-group">
+                                <label class="col-form-label" for="editBuildingCode">Code</label>
+                                <input type="text" name="code" id="editBuildingCode" class="form-control"
+                                    placeholder="Building Code" required>
+                            </div>
+                        </div>
+                        <div class="col-xl-12">
+                            <div class="form-group">
+                                <label class="col-form-label" for="editBuildingAddress">Address</label>
+                                <input type="text" name="address" id="editBuildingAddress" class="form-control"
+                                    placeholder="Address">
+                            </div>
+                        </div>
+                        <div class="col-xl-4">
+                            <div class="form-group">
+                                <label class="col-form-label" for="editBuildingLatitude">Latitude</label>
+                                <input type="text" name="latitude" id="editBuildingLatitude" class="form-control"
+                                    placeholder="Latitude">
+                            </div>
+                        </div>
+                        <div class="col-xl-4">
+                            <div class="form-group">
+                                <label class="col-form-label" for="editBuildingLongitude">Longitude</label>
+                                <input type="text" name="longitude" id="editBuildingLongitude" class="form-control"
+                                    placeholder="Longitude">
+                            </div>
+                        </div>
+                        <div class="col-xl-4">
+                            <div class="form-group">
+                                <label class="col-form-label" for="editBuildingStatus">Status</label>
+                                <select name="status" id="editBuildingStatus" class="form-control">
+                                    <option value="1">Active</option>
+                                    <option value="0">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger light" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Update Building</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='vendor/datatables/js/jquery.dataTables.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/datatables/js/dataTables.responsive.min.js') }}"></script>
+<script>
+    jQuery(function ($) {
+        $("#buildingResponsiveTable").DataTable({
+            responsive: true,
+            pageLength: 10,
+            lengthMenu: [10, 25, 50, 100],
+            pagingType: "simple_numbers",
+            ordering: true,
+            language: {
+                paginate: {
+                    previous: "Previous",
+                    next: "Next"
+                }
+            },
+            columnDefs: [
+                { orderable: false, targets: -1 },
+                { responsivePriority: 1, targets: 1 },
+                { responsivePriority: 2, targets: -1 },
+                { responsivePriority: 3, targets: 4 }
+            ]
+        });
+
+        {% if open_modal %}
+        var addBuildingModal = new bootstrap.Modal(document.getElementById("addBuildingModal"));
+        addBuildingModal.show();
+        {% endif %}
+
+        $(".building-edit-button").on("click", function () {
+            var button = $(this);
+
+            $("#editBuildingForm").attr("action", button.data("update-url"));
+            $("#editBuildingName").val(button.data("name"));
+            $("#editBuildingCode").val(button.data("code"));
+            $("#editBuildingAddress").val(button.data("address"));
+            $("#editBuildingLatitude").val(button.data("latitude"));
+            $("#editBuildingLongitude").val(button.data("longitude"));
+            $("#editBuildingStatus").val(String(button.data("status")));
+        });
+    });
+</script>
+{% endblock %}

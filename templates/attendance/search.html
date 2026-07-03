@@ -1,0 +1,228 @@
+{% extends "layouts/master.html" %}
+
+{% block title %}Search Attendance | SparkNext{% endblock %}
+
+{% block extra_css %}
+<link href="{{ url_for('static', filename='vendor/datatables/css/jquery.dataTables.min.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='vendor/datatables/css/responsive.bootstrap.min.css') }}" rel="stylesheet">
+<style>
+    .attendance-datatable {
+        width: 100%;
+    }
+
+    /* Prevent DataTables FOUC (Flash of Unstyled Content) and vertical jerk */
+    .attendance-datatable:not(.dataTable) {
+        opacity: 0;
+    }
+    .attendance-datatable:not(.dataTable) tbody tr:nth-child(n+11) {
+        display: none;
+    }
+    .attendance-datatable.dataTable {
+        opacity: 1;
+        transition: opacity 0.3s ease-in;
+    }
+
+    .attendance-datatable th,
+    .attendance-datatable td {
+        vertical-align: middle;
+    }
+
+    .attendance-actions {
+        min-width: 130px;
+    }
+
+    .attendance-note {
+        max-width: 220px;
+        white-space: normal;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-titles">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.home') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('main.attendance_list') }}">Attendance</a></li>
+        <li class="breadcrumb-item active"><a href="javascript:void(0)">Search</a></li>
+    </ol>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- Search Form -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title">Search Filters</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('main.attendance_search') }}" class="row g-3 align-items-center">
+                    <div class="col-md-4">
+                        <label for="search_date" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="search_date" name="search_date" value="{{ search_date }}">
+                    </div>
+                    {% if current_user.role == "admin" %}
+                    <div class="col-md-4">
+                        <label for="search_name" class="form-label">Staff Name</label>
+                        <input type="text" class="form-control" id="search_name" name="search_name" value="{{ search_name }}" placeholder="Enter name...">
+                    </div>
+                    {% endif %}
+                    <div class="col-md-4 mt-auto">
+                        <button type="submit" class="btn btn-primary d-block w-100">
+                            <i class="fa fa-search me-2"></i> Search
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between">
+                <h4 class="card-title mb-0">Search Results</h4>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="badge light badge-primary">{{ attendance_records|length }} records found</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <table id="attendanceResponsiveTable" class="display responsive nowrap attendance-datatable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            {% if current_user.role == "admin" %}
+                                <th>Staff</th>
+                                <th>Role</th>
+                            {% endif %}
+                            <th>Date</th>
+                            <th>Building</th>
+                            <th>Shift</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Total Time</th>
+                            {% if current_user.role == "admin" %}
+                                <th>Approval</th>
+                                <th class="text-end">Action</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for attendance in attendance_records %}
+                            <tr>
+                                <td><strong class="text-black">{{ loop.index }}</strong></td>
+                                {% if current_user.role == "admin" %}
+                                    <td>{{ attendance.employee.name }}</td>
+                                    <td>
+                                        {% if attendance.employee.role == 'employee' %}
+                                            Emp
+                                        {% elif attendance.employee.role == 'temporary' %}
+                                            Temp
+                                        {% else %}
+                                            {{ attendance.employee.role|capitalize }}
+                                        {% endif %}
+                                    </td>
+                                {% endif %}
+                                <td>{{ attendance.attendance_date.strftime("%d %b %Y") }}</td>
+                                <td>{{ attendance.building.name if attendance.building else "-" }}</td>
+                                <td>{{ attendance.shift.name if attendance.shift else "Unassigned" }}</td>
+                                <td>{{ format_local_time(attendance.check_in_at) }}</td>
+                                <td>{{ format_local_time(attendance.check_out_at) }}</td>
+                                <td>{{ attendance_total_time(attendance, current_user.role != "admin") }}</td>
+                                {% if current_user.role == "admin" %}
+                                <td>
+                                    {% if attendance.approval_status == "approved" %}
+                                        <span class="badge light badge-success">Approved</span>
+                                    {% elif attendance.approval_status == "rejected" %}
+                                        <span class="badge light badge-danger">Rejected</span>
+                                    {% else %}
+                                        <span class="badge light badge-warning">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end attendance-actions">
+                                    {% if attendance.approval_status == "approved" %}
+                                        <span class="badge light badge-success">Approved</span>
+                                    {% elif attendance.approval_status == "rejected" %}
+                                        <span class="badge light badge-danger">Rejected</span>
+                                    {% elif attendance.employee.role == "temporary" and not attendance.employee.status %}
+                                        <div class="d-flex justify-content-end gap-1">
+                                            <form method="post" action="{{ url_for('main.approve_attendance', attendance_id=attendance.id) }}">
+                                                <button type="submit" class="btn btn-success shadow btn-xs">Approve</button>
+                                            </form>
+                                            <form method="post" action="{{ url_for('main.reject_attendance', attendance_id=attendance.id) }}">
+                                                <button type="submit" class="btn btn-danger shadow btn-xs">Reject</button>
+                                            </form>
+                                        </div>
+                                    {% elif attendance.check_out_at is none %}
+                                        <span class="text-muted attendance-note d-inline-block mt-1">Waiting for checkout</span>
+                                    {% else %}
+                                        <div class="d-flex justify-content-end gap-1">
+                                            <form method="post" action="{{ url_for('main.approve_attendance', attendance_id=attendance.id) }}">
+                                                <button type="submit" class="btn btn-success shadow btn-xs">Approve</button>
+                                            </form>
+                                            <form method="post" action="{{ url_for('main.reject_attendance', attendance_id=attendance.id) }}">
+                                                <button type="submit" class="btn btn-danger shadow btn-xs">Reject</button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                {% endif %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='vendor/datatables/js/jquery.dataTables.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/datatables/js/dataTables.responsive.min.js') }}"></script>
+<script>
+    jQuery(function ($) {
+        $("#attendanceResponsiveTable").DataTable({
+            responsive: true,
+            pageLength: 10,
+            lengthMenu: [10, 25, 50, 100],
+            pagingType: "simple_numbers",
+            ordering: true,
+            language: {
+                paginate: {
+                    previous: "Previous",
+                    next: "Next"
+                }
+            },
+            columnDefs: [
+                {% if current_user.role == "admin" %}
+                    { orderable: false, targets: -1 },
+                    { responsivePriority: 1, targets: 1 },
+                    { responsivePriority: 2, targets: 4 }, // Building
+                    { responsivePriority: 3, targets: 2 }, // Role
+                    { responsivePriority: 4, targets: 6 }, // Check In
+                    { responsivePriority: 5, targets: 7 }, // Check Out
+                    { responsivePriority: 6, targets: 8 }, // Total Time
+                    { responsivePriority: 7, targets: -1 } // Action
+                {% else %}
+                    { responsivePriority: 1, targets: 1 },
+                    { responsivePriority: 2, targets: 4 },
+                    { responsivePriority: 3, targets: 5 },
+                    { responsivePriority: 4, targets: 6 }
+                {% endif %}
+            ]
+        });
+    });
+</script>
+{% endblock %}

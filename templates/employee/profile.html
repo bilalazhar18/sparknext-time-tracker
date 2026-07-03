@@ -1,0 +1,66 @@
+{% extends "layouts/master.html" %}
+
+{% block title %}My Profile | SparkNext{% endblock %}
+
+{% block content %}
+<div class="page-titles">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.home') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active"><a href="javascript:void(0)">Profile</a></li>
+    </ol>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title">My Profile</h4>
+            </div>
+            <div class="card-body">
+                <div class="basic-form">
+                    <form method="post" action="{{ url_for('main.profile') }}">
+                        <div class="row">
+                            <div class="mb-3 col-md-6">
+                                <label class="form-label">Full Name</label>
+                                <input type="text" class="form-control" value="{{ current_user.name }}" readonly>
+                            </div>
+                            <div class="mb-3 col-md-6">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" value="{{ current_user.email }}" readonly>
+                            </div>
+                            <div class="mb-3 col-md-6">
+                                <label class="form-label">Role</label>
+                                <input type="text" class="form-control text-capitalize" value="{{ current_user.role }}" readonly>
+                            </div>
+                            <div class="mb-3 col-md-6">
+                                <label class="form-label">Status</label>
+                                <input type="text" class="form-control" value="{{ 'Active' if current_user.status else 'Pending' }}" readonly>
+                            </div>
+                            <div class="mb-3 col-md-12 mt-3">
+                                <hr>
+                                <h5 class="mb-3">Update Password</h5>
+                            </div>
+                            <div class="mb-3 col-md-12">
+                                <label class="form-label">New Password</label>
+                                <input type="password" name="password" class="form-control" placeholder="Enter new password to update">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-3">Update Password</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

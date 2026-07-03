@@ -1,0 +1,54 @@
+<!--**********************************
+            Sidebar start
+        ***********************************-->
+<div class="deznav">
+	<div class="deznav-scroll">
+		<ul class="metismenu" id="menu">
+			<li class="{{ 'mm-active' if request.endpoint == 'main.home' else '' }}">
+				<a class="ai-icon" href="{{ url_for('main.home') }}"
+					aria-expanded="{{ 'true' if request.endpoint == 'main.home' else 'false' }}">
+					<i class="flaticon-381-networking"></i>
+					<span class="nav-text">Dashboard</span>
+				</a>
+			</li>
+
+			{% if current_user.role == "admin" %}
+			<li class="{{ 'mm-active' if request.endpoint and request.endpoint.startswith('main.employee_') else '' }}">
+				<a href="{{ url_for('main.employee_list') }}" class="ai-icon"
+					aria-expanded="{{ 'true' if request.endpoint and request.endpoint.startswith('main.employee_') else 'false' }}">
+					<i class="flaticon-381-id-card-4"></i>
+					<span class="nav-text">Employees</span>
+				</a>
+			</li>
+			<li class="{{ 'mm-active' if request.endpoint and request.endpoint.startswith('main.building_') else '' }}">
+				<a href="{{ url_for('main.building_list') }}" class="ai-icon"
+					aria-expanded="{{ 'true' if request.endpoint and request.endpoint.startswith('main.building_') else 'false' }}">
+					<i class="flaticon-381-controls-3"></i>
+					<span class="nav-text">Buildings</span>
+				</a>
+			</li>
+			{% endif %}
+
+			<li
+				class="{{ 'mm-active' if request.endpoint and request.endpoint.startswith('main.attendance_') else '' }}">
+				<a href="javascript:void(0);" class="ai-icon has-arrow"
+					aria-expanded="{{ 'true' if request.endpoint and request.endpoint.startswith('main.attendance_') else 'false' }}">
+					<i class="flaticon-381-menu"></i>
+					<span class="nav-text">Attendance</span>
+				</a>
+				<ul aria-expanded="{{ 'true' if request.endpoint and request.endpoint.startswith('main.attendance_') else 'false' }}"
+					class="{{ 'mm-show' if request.endpoint and request.endpoint.startswith('main.attendance_') else '' }}">
+					<li><a href="{{ url_for('main.attendance_list') }}"
+							class="{{ 'mm-active' if request.endpoint == 'main.attendance_list' else '' }}">Attendance</a>
+					</li>
+					<li><a href="{{ url_for('main.attendance_search') }}"
+							class="{{ 'mm-active' if request.endpoint == 'main.attendance_search' else '' }}">Search
+							Attendance</a></li>
+				</ul>
+			</li>
+		</ul>
+	</div>
+</div>
+<!--**********************************
+            Sidebar end
+        ***********************************-->

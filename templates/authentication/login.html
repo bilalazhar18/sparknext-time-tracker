@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en" class="h-100">
+
+<head>
+
+	<!-- Title -->
+	<title>SparkNext</title>
+
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="author" content="Sparknext">
+
+	<meta name="keywords"
+		content="	admin dashboard, admin template, administration, analytics, bootstrap, disease, doctor, elegant, health, hospital admin, medical dashboard, modern, responsive admin dashboard">
+	<meta name="description" content="spark next admin panel">
+
+	<meta property="og:title" content="ERES - SparkNext Admin Dashboard">
+	<meta property="og:description" content="SparkNext Admin Dashboard">
+	<meta name="format-detection" content="telephone=no">
+
+	<!-- Mobile Specific -->
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<!-- Favicon icon -->
+	<link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.png') }}">
+
+	<link href="{{ url_for('static', filename='vendor/bootstrap-select/dist/css/bootstrap-select.min.css') }}"
+		rel="stylesheet">
+	<link class="main-css" href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+
+</head>
+
+<body class="vh-100">
+
+	<div class="authincation h-100">
+		<div class="container h-100">
+			<div class="row justify-content-center h-100 align-items-center">
+				<div class="col-md-6">
+					<div class="authincation-content">
+						<div class="row no-gutters">
+							<div class="col-xl-12">
+								<div class="auth-form">
+									<div class="text-center mb-3">
+										<a href="{{ url_for('main.login') }}"><img
+												src="{{ url_for('static', filename='images/logo.png') }}"
+												alt="SparkNext Logo" class="img-fluid" style="max-width: 180px; object-fit: contain;"></a>
+									</div>
+									{% with messages = get_flashed_messages(with_categories=true) %}
+										{% if messages %}
+											{% for category, message in messages %}
+												<div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+													{{ message }}
+													<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+												</div>
+											{% endfor %}
+										{% endif %}
+									{% endwith %}
+									{% if session.get('scanned_building_name') %}
+										<div class="alert alert-info text-center">
+											<strong>Location:</strong> {{ session.get('scanned_building_name') }}
+										</div>
+									{% endif %}
+									<h4 class="text-center mb-4">Sign in your account</h4>
+									<form action="{{ url_for('main.login') }}" method="post" id="loginForm">
+										<input type="hidden" name="latitude" id="lat">
+										<input type="hidden" name="longitude" id="lng">
+										<div class="form-group">
+											<label class="form-label">Email</label>
+											<input type="email" name="email"
+												class="form-control {% if errors.email %}is-invalid{% endif %}"
+												value="{{ email or '' }}" required>
+											{% if errors.email %}
+											<div class="invalid-feedback d-block">{{ errors.email }}</div>
+											{% endif %}
+										</div>
+										<label class="form-label">Password</label>
+										<div class="mb-3 position-relative">
+											<input type="password" id="dz-password" name="password"
+												class="form-control {% if errors.password %}is-invalid{% endif %}"
+												required>
+											<span class="show-pass eye">
+												<i class="fa fa-eye-slash"></i>
+												<i class="fa fa-eye"></i>
+											</span>
+											{% if errors.password %}
+											<div class="invalid-feedback d-block">{{ errors.password }}</div>
+											{% endif %}
+										</div>
+
+										<div class="text-center">
+											<button type="submit" class="btn btn-primary btn-block">Sign Me In</button>
+										</div>
+									</form>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script src="{{ url_for('static', filename='vendor/global/global.min.js') }}"></script>
+	<script src="{{ url_for('static', filename='vendor/bootstrap-select/dist/js/bootstrap-select.min.js') }}"></script>
+	<script>
+		document.querySelector(".show-pass")?.addEventListener("click", function () {
+			const passwordInput = document.getElementById("dz-password");
+			this.classList.toggle("active");
+			passwordInput.type = passwordInput.type === "password" ? "text" : "password";
+		});
+
+		document.getElementById('loginForm').addEventListener('submit', function(e) {
+			if (!document.getElementById('lat').value && navigator.geolocation) {
+				e.preventDefault();
+				var btn = this.querySelector('button[type="submit"]');
+				btn.disabled = true;
+				btn.textContent = 'Verifying location...';
+
+				navigator.geolocation.getCurrentPosition(
+					function(pos) {
+						document.getElementById('lat').value = pos.coords.latitude;
+						document.getElementById('lng').value = pos.coords.longitude;
+						document.getElementById('loginForm').submit();
+					},
+					function(err) {
+                        // Let the backend handle the missing location.
+                        // Admins will be allowed through, employees will be rejected by backend.
+						document.getElementById('loginForm').submit();
+					},
+					{ enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+				);
+			}
+		});
+	</script>
+</body>
+
+</html>

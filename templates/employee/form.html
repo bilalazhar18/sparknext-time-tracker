@@ -1,0 +1,68 @@
+{% extends "layouts/master.html" %}
+
+{% block title %}Add Staff | SparkNext{% endblock %}
+
+{% block content %}
+<div class="page-titles">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.home') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('main.employee_list') }}">Employees</a></li>
+        <li class="breadcrumb-item active"><a href="javascript:void(0)">Add Staff</a></li>
+    </ol>
+</div>
+
+<div class="row">
+    <div class="col-xl-8 col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">Add Staff</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('main.employee_create') }}">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" name="name" class="form-control {% if errors.name %}is-invalid{% endif %}" value="{{ form_data.name }}" required>
+                            {% if errors.name %}
+                                <div class="invalid-feedback d-block">{{ errors.name }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control {% if errors.email %}is-invalid{% endif %}" value="{{ form_data.email }}" required>
+                            {% if errors.email %}
+                                <div class="invalid-feedback d-block">{{ errors.email }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Password</label>
+                            <input type="password" name="password" class="form-control {% if errors.password %}is-invalid{% endif %}" required>
+                            {% if errors.password %}
+                                <div class="invalid-feedback d-block">{{ errors.password }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Role</label>
+                            <select name="role" class="form-control">
+                                <option value="employee" {% if form_data.role == "employee" %}selected{% endif %}>Employee</option>
+                                <option value="temporary" {% if form_data.role == "temporary" %}selected{% endif %}>Temporary</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-control">
+                                <option value="1" {% if form_data.status == "1" %}selected{% endif %}>Active</option>
+                                <option value="0" {% if form_data.status == "0" %}selected{% endif %}>Pending</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <a href="{{ url_for('main.employee_list') }}" class="btn btn-light">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Save Staff</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

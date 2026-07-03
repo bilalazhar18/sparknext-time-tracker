@@ -1,0 +1,30 @@
+# Python virtual environments
+venv/
+env/
+.env/
+
+# Python compiled bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local configuration / secrets
+.env
+config.local.py
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Database files (if using local SQLite instead of MySQL)
+*.sqlite3
+*.db
+
+# macOS files
+.DS_Store
+
+# Ignore static files
+static/
